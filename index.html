@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareConnect</title>
+  <style>
+    /* Reset and Base Styles */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      /* Nice gradient background */
+      background: linear-gradient(135deg, #f0f2f5 0%, #d9e4f5 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden; /* Prevents scrollbars if watermark is huge */
+      position: relative;
+    }
+
+    /* --- THE SYMPHONY WATERMARK --- */
+    body::before {
+      content: "Symphony";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      
+      /* Huge text styling */
+      font-size: 12vw; /* Responsive size based on screen width */
+      font-weight: 900;
+      color: rgba(0, 121, 107, 0.08); /* Medical teal, very faint (8% opacity) */
+      z-index: -1; /* Puts it BEHIND the chat box */
+      letter-spacing: 10px;
+      user-select: none; /* User can't select the background text */
+    }
+
+    /* Main Chat Container */
+    #chat-container {
+      width: 100%;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.95); /* Slightly transparent to show BG blur */
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 80vh; 
+      backdrop-filter: blur(5px); /* Blurs the watermark behind the box */
+    }
+
+    /* Header */
+    .chat-header {
+      background-color: #00796b; 
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-bottom: 1px solid #004d40;
+    }
+
+    /* Messages Area */
+    #messages {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      background-color: rgba(229, 221, 213, 0.3); /* Subtle tint */
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Message Bubbles */
+    .msg {
+      padding: 10px 15px;
+      border-radius: 15px;
+      max-width: 75%;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      word-wrap: break-word;
+      animation: fadeIn 0.3s ease; /* Smooth fade-in animation */
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background-color: #dcf8c6; 
+      color: #333;
+      border-bottom-right-radius: 2px;
+    }
+
+    .msg.bot {
+      align-self: flex-start;
+      background-color: #ffffff;
+      color: #333;
+      border-bottom-left-radius: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    /* Input Area */
+    .input-area {
+      display: flex;
+      padding: 10px;
+      background: #f0f0f0;
+      border-top: 1px solid #ddd;
+    }
+
+    #input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      outline: none;
+      font-size: 1rem;
+    }
+
+    #input:focus {
+      border-color: #00796b;
+      box-shadow: 0 0 5px rgba(0, 121, 107, 0.3);
+    }
+
+    button {
+      margin-left: 10px;
+      padding: 10px 20px;
+      background-color: #00796b;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background-color: #004d40;
+      transform: scale(1.05);
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+      transform: scale(1);
+    }
+  </style>
+</head>
+<body>
+
+<div id="chat-container">
+  <div class="chat-header">
+    Symphony Care
+  </div>
+  
+  <div id="messages">
+    </div>
+
+  <div class="input-area">
+    <input id="input" type="text" placeholder="Type your message..." onkeypress="handleEnter(event)" />
+    <button id="sendBtn" onclick="send()">Send</button>
+  </div>
+</div>
+
+<script>
+  const messagesDiv = document.getElementById('messages');
+  const inputField = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+
+  // ---------------------------------------------------------
+  // 1. FORCE NEW SESSION ID ON EVERY LOAD
+  // We removed sessionStorage/localStorage entirely.
+  // Every time you refresh or open this page, you get a new ID.
+  // ---------------------------------------------------------
+  const sessionId = "sess-" + Math.random().toString(36).substring(2, 15);
+
+  // 2. Auto-Start the conversation immediately
+  sendSilentStart();
+
+  function handleEnter(event) {
+    if (event.key === "Enter") send();
+  }
+
+  function scrollToBottom() {
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
+  function sendSilentStart() {
+      // Sends a silent "Hello" so the bot greets you first
+      fetch("http://localhost:8094/chat", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain", "X-Session-ID": sessionId },
+          body: "Hello" 
+      })
+      .then(res => res.text())
+      .then(reply => {
+          messagesDiv.innerHTML += `<div class="msg bot">${reply}</div>`;
+      })
+      .catch(err => console.error("Error starting chat:", err));
+  }
+
+  function send() {
+    const msg = inputField.value.trim();
+    if (!msg) return;
+
+    // UI Updates
+    messagesDiv.innerHTML += `<div class="msg user">${msg}</div>`;
+    inputField.value = "";
+    scrollToBottom();
+    sendBtn.disabled = true;
+
+    // Send to Backend (Port 8094 based on your code)
+    fetch("http://localhost:8095/chat", {
+      method: "POST",
+      headers: {
+          "Content-Type": "text/plain",
+          "X-Session-ID": sessionId 
+      },
+      body: msg
+    })
+    .then(res => res.text())
+    .then(reply => {
+      messagesDiv.innerHTML += `<div class="msg bot">${reply}</div>`;
+      scrollToBottom();
+    })
+    .catch(err => {
+      console.error(err);
+      messagesDiv.innerHTML += `<div class="msg bot" style="color:red;">Server Error</div>`;
+    })
+    .finally(() => {
+      sendBtn.disabled = false;
+      inputField.focus();
+    });
+  }
+</script>
+</body>
+</html>
