@@ -1,5 +1,6 @@
+<h3>
 CareConnect is a healthcare-focused hackathon project designed to simplify patient–doctor communication and appointment management through a secure and scalable digital platform.
-
+</h3>
 The application bridges the gap between patients and healthcare providers by offering easy appointment booking, real-time chat support, and centralized medical interactions, making healthcare more accessible and efficient.
 
 This project addresses key healthcare challenges such as:
